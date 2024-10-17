@@ -250,9 +250,9 @@ class DeepOcSort(BaseTracker):
     """
     def __init__(
         self,
-        reid_weights: Path,
-        device: torch.device,
-        half: bool,
+        reid_weights: Path | None = None,
+        device: torch.device = torch.device("cpu"),
+        half: bool = False,
         per_class: bool = False,
         det_thresh: float = 0.3,
         max_age: int = 30,
@@ -290,12 +290,16 @@ class DeepOcSort(BaseTracker):
         self.Q_s_scaling = Q_s_scaling
         KalmanBoxTracker.count = 1
 
-        self.model = ReidAutoBackend(
-            weights=reid_weights, device=device, half=half
-        ).model
+        self.embedding_off = embedding_off
+        if reid_weights is not None:
+            self.model = ReidAutoBackend(
+                weights=reid_weights, device=device, half=half
+            ).model
+        else:
+            self.model = None
+            self.embedding_off = True
         # "similarity transforms using feature point extraction, optical flow, and RANSAC"
         self.cmc = get_cmc_method('sof')()
-        self.embedding_off = embedding_off
         self.cmc_off = cmc_off
         self.aw_off = aw_off
 
@@ -330,7 +334,9 @@ class DeepOcSort(BaseTracker):
             dets_embs = embs
         else:
             # (Ndets x X) [512, 1024, 2048]
-            dets_embs = self.model.get_features(dets[:, 0:4], img)
+            if not self.embedding_off:
+                assert self.model is not None
+                dets_embs = self.model.get_features(dets[:, 0:4], img)
 
         # CMC
         if not self.cmc_off:
