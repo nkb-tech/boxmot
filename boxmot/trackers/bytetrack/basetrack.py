@@ -4,6 +4,8 @@ from collections import OrderedDict
 
 import numpy as np
 
+from boxmot.trackers.basetracker import TrackState
+
 
 class BaseTrack(object):
     _count = 0

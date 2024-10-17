@@ -53,7 +53,7 @@ class KalmanBoxTracker(object):
 
     count = 0
 
-    def __init__(self, det, delta_t=3, emb=None, alpha=0, max_obs=50, Q_xy_scaling = 0.01, Q_s_scaling = 0.0001):
+    def __init__(self, det, min_hits=3, delta_t=3, emb=None, alpha=0, max_obs=50, Q_xy_scaling = 0.01, Q_s_scaling = 0.0001):
         """
         Initialises a tracker using initial bounding box.
 
@@ -104,6 +104,7 @@ class KalmanBoxTracker(object):
         self.id = KalmanBoxTracker.count
         KalmanBoxTracker.count += 1
         self.history = deque([], maxlen=self.max_obs)
+        self.min_hits = min_hits
         self.hits = 0
         self.hit_streak = 0
         self.age = 0
@@ -126,6 +127,7 @@ class KalmanBoxTracker(object):
         self.emb = emb
 
         self.frozen = False
+        self.state = TrackState.New
 
     def update(self, det):
         """
@@ -163,9 +165,13 @@ class KalmanBoxTracker(object):
             self.hits += 1
             self.hit_streak += 1
 
+            if self.hit_streak >= self.min_hits or self.state == TrackState.Lost:
+                self.state = TrackState.Tracked
             self.kf.update(self.bbox_to_z_func(bbox))
         else:
             self.kf.update(det)
+            if self.hit_streak >= self.min_hits or self.state == TrackState.Tracked:
+                self.state = TrackState.Lost
             self.frozen = True
 
     def update_emb(self, emb, alpha=0.9):
@@ -444,6 +450,7 @@ class DeepOcSort(BaseTracker):
         for i in unmatched_dets:
             trk = KalmanBoxTracker(
                 dets[i],
+                min_hits=self.min_hits,
                 delta_t=self.delta_t,
                 emb=dets_embs[i],
                 alpha=dets_alpha[i],
@@ -462,12 +469,12 @@ class DeepOcSort(BaseTracker):
                 we didn't notice significant difference here
                 """
                 d = trk.last_observation[:4]
-            if trk.hit_streak >= self.min_hits or self.frame_count <= self.min_hits:
-                # +1 as MOT benchmark requires positive
+            if trk.state == TrackState.Tracked or trk.state == TrackState.Lost or self.frame_count <= self.min_hits:
                 ret.append(np.concatenate((d, [trk.id], [trk.conf], [trk.cls], [trk.det_ind])).reshape(1, -1))
             i -= 1
             # remove dead tracklet
             if trk.time_since_update > self.max_age:
+                trk.state = TrackState.Removed
                 self.active_tracks.pop(i)
         if len(ret) > 0:
             return np.concatenate(ret)
