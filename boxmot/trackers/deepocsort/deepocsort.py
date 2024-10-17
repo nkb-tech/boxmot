@@ -10,7 +10,7 @@ from boxmot.motion.cmc import get_cmc_method
 from boxmot.motion.kalman_filters.xysr_kf import KalmanFilterXYSR
 from boxmot.motion.kalman_filters.xywh_kf import KalmanFilterXYWH
 from boxmot.utils.association import associate, linear_assignment
-from boxmot.trackers.basetracker import BaseTracker
+from boxmot.trackers.basetracker import BaseTracker, TrackState
 from boxmot.utils.ops import xyxy2xysr
 
 

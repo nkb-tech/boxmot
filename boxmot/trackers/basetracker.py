@@ -7,6 +7,13 @@ from boxmot.utils import logger as LOGGER
 from boxmot.utils.iou import AssociationFunction
 
 
+class TrackState(object):
+    New = 0
+    Tracked = 1
+    Lost = 2
+    Removed = 3
+
+
 class BaseTracker(ABC):
     def __init__(
         self, 
