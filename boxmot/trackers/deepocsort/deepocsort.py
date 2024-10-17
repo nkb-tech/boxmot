@@ -248,7 +248,7 @@ class DeepOcSort(BaseTracker):
         alpha_fixed_emb (float, optional): Fixed alpha for updating embeddings. Controls the contribution of new and old embeddings in the ReID model.
         aw_param (float, optional): Parameter for adaptive weighting between association costs.
         embedding_off (bool, optional): Whether to turn off the embedding-based association.
-        cmc_off (bool, optional): Whether to turn off camera motion compensation (CMC).
+        cmc (str, optional): Camera motion compemnsation method to use. Default None.
         aw_off (bool, optional): Whether to turn off adaptive weighting.
         Q_xy_scaling (float, optional): Scaling factor for the process noise covariance in the Kalman Filter for position coordinates.
         Q_s_scaling (float, optional): Scaling factor for the process noise covariance in the Kalman Filter for scale coordinates.
@@ -271,7 +271,7 @@ class DeepOcSort(BaseTracker):
         alpha_fixed_emb: float = 0.95,
         aw_param: float = 0.5,
         embedding_off: bool = False,
-        cmc_off: bool = False,
+        cmc : str | None = None,
         aw_off: bool = False,
         Q_xy_scaling: float = 0.01,
         Q_s_scaling: float = 0.0001,
@@ -305,8 +305,10 @@ class DeepOcSort(BaseTracker):
             self.model = None
             self.embedding_off = True
         # "similarity transforms using feature point extraction, optical flow, and RANSAC"
-        self.cmc = get_cmc_method('sof')()
-        self.cmc_off = cmc_off
+        if cmc is not None:
+            self.cmc = get_cmc_method(cmc)()  # type: ignore
+        else:
+            self.cmc = None
         self.aw_off = aw_off
 
     @BaseTracker.on_first_frame_setup
@@ -345,7 +347,7 @@ class DeepOcSort(BaseTracker):
                 dets_embs = self.model.get_features(dets[:, 0:4], img)
 
         # CMC
-        if not self.cmc_off:
+        if self.cmc is not None:
             transform = self.cmc.apply(img, dets[:, :4])
             for trk in self.active_tracks:
                 trk.apply_affine_correction(transform)
